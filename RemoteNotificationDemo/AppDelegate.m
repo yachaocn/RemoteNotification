@@ -10,36 +10,111 @@
 
 @interface AppDelegate ()
 
+@property(nonatomic) BOOL registered;
 @end
 
 @implementation AppDelegate
 
 
+#pragma mark - 注册远程通知
+//用户点击默认按钮、app图标时调用此方法。
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    // Override point for customization after application launch.
+
+//注册通知事件
+    // 第一个事件
+    
+    UIMutableUserNotificationAction *acceptAction = [[UIMutableUserNotificationAction alloc]init];
+    //创建一个identify用于标记action
+    acceptAction.identifier = @"ACCEPT_IDENTIFIER";
+    acceptAction.title = @"Accept";
+    //如果activationMode设置为UIUserNotificationActivationModeForeground，则authenticationRequired将被系统强制设置为yes，将忽视后面的设置。
+    //选择在什么情况加激活应用程序。
+    acceptAction.activationMode = UIUserNotificationActivationModeBackground;
+    //提示字体颜色：yes ：红色 no :蓝色
+    acceptAction.destructive = NO;
+    //是否需要密码验证，yes需要，no：不需要
+    acceptAction.authenticationRequired = NO;
+    
+//    第二个事件
+    UIMutableUserNotificationAction *meetingAction = [[UIMutableUserNotificationAction alloc]init];
+    //创建一个identify用于标记action
+    meetingAction.identifier = @"MEETING_IDENTIFIER";
+    meetingAction.title = @"OK";
+    //如果activationMode设置为UIUserNotificationActivationModeForeground，则authenticationRequired将被系统强制设置为yes，将忽视后面的设置。
+    //选择在什么情况加激活应用程序。
+    meetingAction.activationMode = UIUserNotificationActivationModeBackground;
+    //提示字体颜色：yes ：红色 no :蓝色
+    meetingAction.destructive = YES;
+    //是否需要密码验证，yes需要，no：不需要
+    meetingAction.authenticationRequired = NO;
+    
+    
+//添加到不同的类别中去
+    UIMutableUserNotificationCategory *inviteCategory = [[UIMutableUserNotificationCategory alloc]init];
+    inviteCategory.identifier = @"INVITE_CATEGORY";
+    [inviteCategory setActions:@[acceptAction,meetingAction] forContext:UIUserNotificationActionContextDefault];
+    [inviteCategory setActions:@[acceptAction,meetingAction] forContext:UIUserNotificationActionContextMinimal];
+    
+//注册通知类别
+    NSSet *categories = [NSSet setWithObjects:inviteCategory,/*alarmCategory*/ nil];
+    
+    CGFloat systemVersion = [[UIDevice currentDevice].systemVersion floatValue];
+    if (systemVersion >= 8.0) {
+        UIUserNotificationType types = UIUserNotificationTypeBadge | UIUserNotificationTypeSound | UIUserNotificationTypeAlert;
+        UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTypes:types categories:categories];
+        [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
+    }
+    //向ios操作系统注册远程通知，以获取decice Token.
+    [[UIApplication sharedApplication] registerForRemoteNotifications];
     return YES;
 }
 
-- (void)applicationWillResignActive:(UIApplication *)application {
-    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
-    // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+-(void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
+{
+    NSLog(@"%@",deviceToken);
+    const void *deviceTokenBytes = [deviceToken bytes];
+    //注册成功
+    self.registered = YES;
+    //发送给本地服务器
+//    [self sendProviderDeviceToken:deviceTokenBytes];
+    
+    
 }
-
-- (void)applicationDidEnterBackground:(UIApplication *)application {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+-(void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
+{
+    //注册device Token时失败。
+    NSLog(@"%@",error);
 }
-
-- (void)applicationWillEnterForeground:(UIApplication *)application {
-    // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
+#pragma mark - 用户点击按钮后执行方法
+-(void)handleAcceptActionWithNotification:(NSDictionary *)userInfo
+{
+    //设置用户点击按钮后程序需要执行的操作。
 }
-
-- (void)applicationDidBecomeActive:(UIApplication *)application {
-    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+#pragma mark - 收到远程通知
+//收到用户点击事件 （应用程序在后台，用户点击一个按钮时触发）
+-(void)application:(UIApplication *)application handleActionWithIdentifier:(NSString *)identifier forRemoteNotification:(NSDictionary *)userInfo completionHandler:(void (^)())completionHandler
+{
+    //具体实现
+    if ([identifier isEqualToString:@"ACCEPT_IDENTIFIER"]) {
+        [self handleAcceptActionWithNotification:userInfo];
+    }
+    if ([identifier isEqualToString:@"MEETING_IDENTIFIER"]) {
+        //执行具体操作。
+    }
+    
+    completionHandler();
 }
-
-- (void)applicationWillTerminate:(UIApplication *)application {
-    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+//应用程序在前台收到远程通知时会调用此方法，如果此方法不被实现则会调用application:didReceiveRemoteNotification
+-(void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
+{
+    NSString *itemName = [userInfo objectForKey:@"ToDoItemKey"];
+    //具体的实现
+    application.applicationIconBadgeNumber = 3;
+    
+}
+-(void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
+{
+    
 }
 
 @end
